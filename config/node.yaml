@@ -1,0 +1,14 @@
+    name : node1
+    processes :
+      -
+          name: process1
+          start : systemctl start test
+          status : systemctl status test
+          stop : systemctl stop test
+          health : curl http://127.0.0.1:8080/health
+      -
+          name: process1
+          start : systemctl start test
+          status : systemctl status test
+          stop : systemctl stop test
+          health : curl http://127.0.0.1:8080/health
