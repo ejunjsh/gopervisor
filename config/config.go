@@ -6,19 +6,19 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type Config struct {
-	Name string
-	Processes []struct{
-		Name string   `yaml:"name"`
-		StartCmd string `yaml:"startCmd"`
-		StatusCmd string `yaml:"statusCmd"`
-		StopCmd string `yaml:"stopCmd"`
-		HealthCmd string `yaml:"healthCmd"`
-	}
+
+type ProcConfig struct {
+	Name string   `yaml:"name"`
+	Cmd string `yaml:"cmd"`
 }
 
-func LoadConfig() (*Config,error){
-	t:= Config{}
+type NodeConfig struct {
+	Name string
+	Processes *[]ProcConfig
+}
+
+func LoadConfig() (*NodeConfig,error){
+	t:= NodeConfig{}
 	b,err:=ioutil.ReadFile("./node.yaml")
 	if err!=nil{
 		log.Print(err)
@@ -31,3 +31,13 @@ func LoadConfig() (*Config,error){
 	}
 	return &t,nil
 }
+
+func (n *NodeConfig)GetProcConfig( name string) *ProcConfig {
+	for _,proc:=range *n.Processes{
+		if proc.Name==name{
+			return &proc
+		}
+	}
+	return nil
+}
+

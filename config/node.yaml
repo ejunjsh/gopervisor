@@ -2,13 +2,7 @@ name: node1
 processes:
   -
       name: process1
-      startCmd: systemctl start test
-      statusCmd: systemctl status test
-      stopCmd: systemctl stop test
-      healthCmd: curl http://127.0.0.1:8080/health
+      cmd: redisServer.sh
   -
       name: process2
-      startCmd: systemctl start test
-      statusCmd: systemctl status test
-      stopCmd: systemctl stop test
-      healthCmd: curl http://127.0.0.1:8080/health
+      cmd: zkServer.sh start

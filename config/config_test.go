@@ -11,5 +11,10 @@ func TestLoadConfig(t *testing.T) {
 		t.Error(err)
 	}
 
+	if len(*n.Processes)!=2{
+		t.Error("wrong expectation.")
+	}
+
+
 	fmt.Println(n)
 }

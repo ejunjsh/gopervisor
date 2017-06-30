@@ -2,15 +2,14 @@ package main
 
 import (
 	"github.com/ejunjsh/gopervisor/config"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 func main(){
-    c,err:=config.LoadConfig()
+    _,err:=config.LoadConfig()
 	if err!=nil{
 		log.Fatal(err)
 		return
 	}
-
 
 }
