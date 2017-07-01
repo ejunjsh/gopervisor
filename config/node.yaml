@@ -3,6 +3,18 @@ processes:
   -
       name: process1
       cmd: redisServer.sh
+      env:
+        env1: env1
+      std:
+        outfile: /opt/out
+        errfile: /opt/err
+      startsecs: 1
   -
       name: process2
       cmd: zkServer.sh start
+      env:
+         env1: env1
+      std:
+          outfile: /opt/out
+          errfile: /opt/err
+      startsecs: 2

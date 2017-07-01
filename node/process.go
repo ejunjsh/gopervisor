@@ -13,6 +13,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/ejunjsh/gopervisor/config"
 )
 
 type ProcessState int
@@ -51,7 +52,7 @@ func (p ProcessState) String() string {
 
 type Process struct {
 	supervisor_id string
-	config        *ConfigEntry
+	config        *config.ProcConfig
 	cmd           *exec.Cmd
 	startTime     time.Time
 	stopTime      time.Time
@@ -69,7 +70,7 @@ type Process struct {
 
 type ProcessSortByPriority []*Process
 
-func NewProcess(supervisor_id string, config *ConfigEntry) *Process {
+func NewProcess(supervisor_id string, config *config.ProcConfig) *Process {
 	proc := &Process{supervisor_id: supervisor_id,
 		config:     config,
 		cmd:        nil,
@@ -140,18 +141,9 @@ func (p *Process) Start(wait bool) {
 }
 
 func (p *Process) GetName() string {
-	if p.config.IsProgram() {
-		return p.config.GetProgramName()
-	} else if p.config.IsEventListener() {
-		return p.config.GetEventListenerName()
-	} else {
-		return ""
-	}
+	return p.config.Name
 }
 
-func (p *Process) GetGroup() string {
-	return p.config.Group
-}
 
 func (p *Process) GetDescription() string {
 	if p.state == RUNNING {
@@ -203,32 +195,33 @@ func (p *Process) GetStopTime() time.Time {
 }
 
 func (p *Process) GetStdoutLogfile() string {
-	return p.config.GetString("stdout_logfile", "/dev/null")
+	if p.config.Std.Outfile ==""{
+		return "/dev/null"
+	} else {
+	   return p.config.Std.Outfile
+	}
 }
 
 func (p *Process) GetStderrLogfile() string {
-	return p.config.GetString("stderr_logfile", "/dev/null")
+	if p.config.Std.Errfile ==""{
+		return "/dev/null"
+	} else {
+		return p.config.Std.Errfile
+	}
 }
 
 func (p *Process) getStartSeconds() int {
-	return p.config.GetInt("startsecs", 1)
+	return p.config.Startsecs
 }
 
 func (p *Process) getStartRetries() int {
-	return p.config.GetInt("startretries", 3)
+	return p.config.Startretries
 }
 
 func (p *Process) isAutoStart() bool {
-	return p.config.GetString("autostart", "true") == "true"
+	return p.config.Autostart
 }
 
-func (p *Process) GetPriority() int {
-	return p.config.GetInt("priority", 999)
-}
-
-func (p *Process) getNumberProcs() int {
-	return p.config.GetInt("numprocs", 1)
-}
 
 func (p *Process) SendProcessStdin(chars string) error {
 	if p.stdin != nil {
@@ -240,32 +233,32 @@ func (p *Process) SendProcessStdin(chars string) error {
 
 // check if the process should be
 func (p *Process) isAutoRestart() bool {
-	autoRestart := p.config.GetString("autorestart", "unexpected")
+	 return p.config.Autorestart
 
-	if autoRestart == "false" {
-		return false
-	} else if autoRestart == "true" {
-		return true
-	} else {
-		p.lock.Lock()
-		defer p.lock.Unlock()
-		if p.cmd != nil && p.cmd.ProcessState != nil {
-			exitCode, err := p.getExitCode()
-			return err == nil && p.inExitCodes(exitCode)
-		}
-	}
-	return false
+	//if !autoRestart  {
+	//	return false
+	//} else if autoRestart  {
+	//	return true
+	//} else {
+	//	p.lock.Lock()
+	//	defer p.lock.Unlock()
+	//	if p.cmd != nil && p.cmd.ProcessState != nil {
+	//		exitCode, err := p.getExitCode()
+	//		return err == nil && p.inExitCodes(exitCode)
+	//	}
+	//}
+	//return false
 
 }
 
-func (p *Process) inExitCodes(exitCode int) bool {
-	for _, code := range p.getExitCodes() {
-		if code == exitCode {
-			return true
-		}
-	}
-	return false
-}
+//func (p *Process) inExitCodes(exitCode int) bool {
+//	for _, code := range p.getExitCodes() {
+//		if code == exitCode {
+//			return true
+//		}
+//	}
+//	return false
+//}
 
 func (p *Process) getExitCode() (int, error) {
 	if status, ok := p.cmd.ProcessState.Sys().(syscall.WaitStatus); ok {
@@ -275,21 +268,21 @@ func (p *Process) getExitCode() (int, error) {
 	return -1, fmt.Errorf("no exit code")
 
 }
-
-func (p *Process) getExitCodes() []int {
-	strExitCodes := strings.Split(p.config.GetString("exitcodes", "0,2"), ",")
-	result := make([]int, 0)
-	for _, val := range strExitCodes {
-		i, err := strconv.Atoi(val)
-		if err == nil {
-			result = append(result, i)
-		}
-	}
-	return result
-}
+//
+//func (p *Process) getExitCodes() []int {
+//	strExitCodes := strings.Split(p.config.GetString("exitcodes", "0,2"), ",")
+//	result := make([]int, 0)
+//	for _, val := range strExitCodes {
+//		i, err := strconv.Atoi(val)
+//		if err == nil {
+//			result = append(result, i)
+//		}
+//	}
+//	return result
+//}
 
 func (p *Process) run(runCond *sync.Cond) {
-	args, err := parseCommand(p.config.GetString("command", ""))
+	args, err := parseCommand(p.config.Cmd)
 
 	if err != nil {
 		log.Error("the command is empty string")
@@ -309,14 +302,14 @@ func (p *Process) run(runCond *sync.Cond) {
 		p.cmd.Args = args
 	}
 	if p.setUser() != nil {
-		log.WithFields(log.Fields{"user": p.config.GetString("user", "")}).Error("fail to run as user")
+		log.WithFields(log.Fields{"user": p.config.User}).Error("fail to run as user")
 		p.lock.Unlock()
 		return
 	}
 	p.cmd.SysProcAttr = &syscall.SysProcAttr{}
 	set_deathsig(p.cmd.SysProcAttr)
 	p.setEnv()
-	p.setDir()
+	//p.setDir()
 	p.setLog()
 
 	p.stdin, _ = p.cmd.StdinPipe()
@@ -324,7 +317,7 @@ func (p *Process) run(runCond *sync.Cond) {
 	p.changeStateTo(STARTING)
 	err = p.cmd.Start()
 	if err != nil {
-		log.WithFields(log.Fields{"program": p.config.GetProgramName()}).Error("fail to start program")
+		log.WithFields(log.Fields{"program": p.config.Name}).Error("fail to start program")
 		p.changeStateTo(FATAL)
 		p.stopTime = time.Now()
 		p.lock.Unlock()
@@ -336,15 +329,15 @@ func (p *Process) run(runCond *sync.Cond) {
 		if p.stderrLog != nil {
 			p.stderrLog.SetPid(p.GetPid())
 		}
-		log.WithFields(log.Fields{"program": p.config.GetProgramName()}).Info("success to start program")
-		startSecs := p.config.GetInt("startsecs", 1)
+		log.WithFields(log.Fields{"program": p.config.Name}).Info("success to start program")
+		startSecs := p.getStartSeconds()
 		//Set startsec to 0 to indicate that the program needn't stay
 		//running for any particular amount of time.
 		if startSecs > 0 {
 			p.changeStateTo(RUNNING)
 		}
 		p.lock.Unlock()
-		log.WithFields(log.Fields{"program": p.config.GetProgramName()}).Debug("wait program exit")
+		log.WithFields(log.Fields{"program": p.config.Name}).Debug("wait program exit")
 		runCond.Signal()
 		p.cmd.Wait()
 		p.lock.Lock()
@@ -360,32 +353,32 @@ func (p *Process) run(runCond *sync.Cond) {
 }
 
 func (p *Process) changeStateTo(procState ProcessState) {
-	if p.config.IsProgram() {
-		progName := p.config.GetProgramName()
-		groupName := p.config.GetGroupName()
-		if procState == STARTING {
-			emitEvent(createPorcessStartingEvent(progName, groupName, p.state.String(), p.retryTimes))
-		} else if procState == RUNNING {
-			emitEvent(createPorcessRunningEvent(progName, groupName, p.state.String(), p.GetPid()))
-		} else if procState == BACKOFF {
-			emitEvent(createPorcessBackoffEvent(progName, groupName, p.state.String(), p.retryTimes))
-		} else if procState == STOPPING {
-			emitEvent(createPorcessStoppingEvent(progName, groupName, p.state.String(), p.GetPid()))
-		} else if procState == EXITED {
-			exitCode, err := p.getExitCode()
-			expected := 0
-			if err == nil && p.inExitCodes(exitCode) {
-				expected = 1
-			}
-			emitEvent(createPorcessExitedEvent(progName, groupName, p.state.String(), expected, p.GetPid()))
-		} else if procState == FATAL {
-			emitEvent(createPorcessFatalEvent(progName, groupName, p.state.String()))
-		} else if procState == STOPPED {
-			emitEvent(createPorcessStoppedEvent(progName, groupName, p.state.String(), p.GetPid()))
-		} else if procState == UNKNOWN {
-			emitEvent(createPorcessUnknownEvent(progName, groupName, p.state.String()))
-		}
-	}
+	//if p.config.IsProgram() {
+	//	progName := p.config.GetProgramName()
+	//	groupName := p.config.GetGroupName()
+	//	if procState == STARTING {
+	//		emitEvent(createPorcessStartingEvent(progName, groupName, p.state.String(), p.retryTimes))
+	//	} else if procState == RUNNING {
+	//		emitEvent(createPorcessRunningEvent(progName, groupName, p.state.String(), p.GetPid()))
+	//	} else if procState == BACKOFF {
+	//		emitEvent(createPorcessBackoffEvent(progName, groupName, p.state.String(), p.retryTimes))
+	//	} else if procState == STOPPING {
+	//		emitEvent(createPorcessStoppingEvent(progName, groupName, p.state.String(), p.GetPid()))
+	//	} else if procState == EXITED {
+	//		exitCode, err := p.getExitCode()
+	//		expected := 0
+	//		if err == nil && p.inExitCodes(exitCode) {
+	//			expected = 1
+	//		}
+	//		emitEvent(createPorcessExitedEvent(progName, groupName, p.state.String(), expected, p.GetPid()))
+	//	} else if procState == FATAL {
+	//		emitEvent(createPorcessFatalEvent(progName, groupName, p.state.String()))
+	//	} else if procState == STOPPED {
+	//		emitEvent(createPorcessStoppedEvent(progName, groupName, p.state.String(), p.GetPid()))
+	//	} else if procState == UNKNOWN {
+	//		emitEvent(createPorcessUnknownEvent(progName, groupName, p.state.String()))
+	//	}
+	//}
 	p.state = procState
 }
 
@@ -401,7 +394,7 @@ func (p *Process) Signal(sig os.Signal) error {
 }
 
 func (p *Process) setEnv() {
-	env := p.config.GetEnv("environment")
+	env := p.config.GetEnvStringArray()
 	if len(env) != 0 {
 		p.cmd.Env = append(os.Environ(), env...)
 	} else {
@@ -409,13 +402,13 @@ func (p *Process) setEnv() {
 	}
 }
 
-func (p *Process) setDir() {
-	dir := p.config.GetString("directory", "")
-	if dir != "" {
-		p.cmd.Dir = dir
-		fmt.Printf("Directory has been set to: %s\n", dir)
-	}
-}
+//func (p *Process) setDir() {
+//	dir := p.config.GetString("directory", "")
+//	if dir != "" {
+//		p.cmd.Dir = dir
+//		fmt.Printf("Directory has been set to: %s\n", dir)
+//	}
+//}
 
 func (p *Process) setLog() {
 	if p.config.IsProgram() {
@@ -504,7 +497,7 @@ func (p *Process) createLogger(logFile string, maxBytes int64, backups int) Logg
 }
 
 func (p *Process) setUser() error {
-	userName := p.config.GetString("user", "")
+	userName := p.config.User
 	if len(userName) == 0 {
 		return nil
 	}
