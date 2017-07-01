@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"os/user"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -68,7 +67,6 @@ type Process struct {
 	stderrLog  Logger
 }
 
-type ProcessSortByPriority []*Process
 
 func NewProcess(supervisor_id string, config *config.ProcConfig) *Process {
 	proc := &Process{supervisor_id: supervisor_id,
@@ -410,76 +408,24 @@ func (p *Process) setEnv() {
 //	}
 //}
 
+
+
 func (p *Process) setLog() {
-	if p.config.IsProgram() {
-		p.stdoutLog = p.createLogger(p.config.GetString("stdout_logfile", ""),
-			int64(p.config.GetBytes("stdout_logfile_maxbytes", 50*1024*1024)),
-			p.config.GetInt("stdout_logfile_backups", 10))
-		capture_bytes := p.config.GetBytes("stdout_capture_maxbytes", 0)
-		if capture_bytes > 0 && p.config.GetBool("stdout_events_enabled", false) {
-			log.WithFields(log.Fields{"program": p.config.GetProgramName()}).Info("capture stdout process communication")
-			p.stdoutLog = NewLogCaptureLogger(p.stdoutLog,
-				capture_bytes,
-				"PROCESS_COMMUNICATION_STDOUT",
-				p.GetName(),
-				p.GetGroup())
-		}
-
-		p.cmd.Stdout = p.stdoutLog
-
-		p.stderrLog = p.createLogger(p.config.GetString("stderr_logfile", ""),
-			int64(p.config.GetBytes("stderr_logfile_maxbytes", 50*1024*1024)),
-			p.config.GetInt("stderr_logfile_backups", 10))
-
-		capture_bytes = p.config.GetBytes("stderr_capture_maxbytes", 0)
-		if capture_bytes > 0 && p.config.GetBool("stderr_events_enabled", false) {
-			log.WithFields(log.Fields{"program": p.config.GetProgramName()}).Info("capture stderr process communication")
-			p.stderrLog = NewLogCaptureLogger(p.stdoutLog,
-				capture_bytes,
-				"PROCESS_COMMUNICATION_STDERR",
-				p.GetName(),
-				p.GetGroup())
-		}
-
-		p.cmd.Stderr = p.stderrLog
-
-	} else if p.config.IsEventListener() {
-		in, err := p.cmd.StdoutPipe()
-		if err != nil {
-			log.WithFields(log.Fields{"eventListener": p.config.GetEventListenerName()}).Error("fail to get stdin")
-			return
-		}
-		out, err := p.cmd.StdinPipe()
-		if err != nil {
-			log.WithFields(log.Fields{"eventListener": p.config.GetEventListenerName()}).Error("fail to get stdout")
-			return
-		}
-		events := strings.Split(p.config.GetString("events", ""), ",")
-		for i, event := range events {
-			events[i] = strings.TrimSpace(event)
-		}
-
-		p.registerEventListener(p.config.GetEventListenerName(),
-			events,
-			in,
-			out)
+	var maxbytes,backups int
+	if p.config.Std.Maxbytes==0{
+		maxbytes=50*1024*1024
 	}
-}
+	if p.config.Std.Backups==0{
+		backups=10
+	}
 
-func (p *Process) registerEventListener(eventListenerName string,
-	events []string,
-	stdin io.Reader,
-	stdout io.Writer) {
-	eventListener := NewEventListener(eventListenerName,
-		p.supervisor_id,
-		stdin,
-		stdout,
-		p.config.GetInt("buffer_size", 100))
-	eventListenerManager.registerEventListener(eventListenerName, events, eventListener)
-}
+	p.stdoutLog = p.createLogger(p.config.Std.Outfile,int64(maxbytes),backups)
 
-func (p *Process) unregisterEventListener(eventListenerName string) {
-	eventListenerManager.unregisterEventListener(eventListenerName)
+	p.cmd.Stdout = p.stdoutLog
+
+	p.stderrLog = p.createLogger(p.config.Std.Errfile,int64(maxbytes),backups)
+
+	p.cmd.Stderr = p.stderrLog
 }
 
 func (p *Process) createLogger(logFile string, maxBytes int64, backups int) Logger {
@@ -546,7 +492,7 @@ func (p *Process) Stop(wait bool) {
 	p.stopByUser = true
 	if p.cmd != nil && p.cmd.Process != nil {
 		log.WithFields(log.Fields{"program": p.GetName()}).Info("stop the program")
-		p.cmd.Process.Signal(toSignal(p.config.GetString("stopsignal", "")))
+		p.cmd.Process.Signal(toSignal(p.config.Stopsignal))
 		if wait {
 			p.cmd.Process.Wait()
 		}
@@ -558,16 +504,4 @@ func (p *Process) GetStatus() string {
 		return p.cmd.ProcessState.String()
 	}
 	return "running"
-}
-
-func (p ProcessSortByPriority) Len() int {
-	return len(p)
-}
-
-func (p ProcessSortByPriority) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
-}
-
-func (p ProcessSortByPriority) Less(i, j int) bool {
-	return p[i].GetPriority() < p[j].GetPriority()
 }

@@ -15,12 +15,16 @@ type ProcConfig struct {
 	Std struct{
 		Outfile string  `yaml:"outfile"`
 		Errfile string  `yaml:"errfile"`
+		Rotate bool `yaml:"rotate"`
+		Maxbytes int `yaml:"maxbytes"`
+		Backups int `yaml:"backups" `
 	}
 	Startsecs int `yaml:"startsecs"`
 	Startretries int `yaml:"startretries"`
 	Autostart bool `yaml:"autostart"`
 	Autorestart bool `yaml:"autorestart"`
 	User string `yaml:"user"`
+	Stopsignal string `yaml:"stopsignal"`
 }
 
 type NodeConfig struct {

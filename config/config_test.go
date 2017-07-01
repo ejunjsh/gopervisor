@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"fmt"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -25,4 +26,5 @@ func TestLoadConfig(t *testing.T) {
     if 	(*n.Processes)[0].GetEnvStringArray()[0]!="env1=env1"{
 		t.Error("wrong env convertion.")
 	}
+
 }

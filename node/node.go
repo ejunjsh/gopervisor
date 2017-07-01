@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/ejunjsh/gopervisor/config"
 )
 
 type Node struct {
@@ -19,7 +20,7 @@ func newNode() *Node {
 }
 
 
-func (pm *Node) CreateProcess(supervisor_id string, config *ConfigEntry) *Process {
+func (pm *Node) CreateProcess(supervisor_id string, config *config.NodeConfig) *Process {
 	procName := config.GetProgramName()
 
 	proc, ok := pm.procs[procName]
@@ -90,7 +91,6 @@ func (pm *Node) getAllProcess() []*Process {
 	for _, proc := range pm.procs {
 		tmpProcs = append(tmpProcs, proc)
 	}
-	sort.Sort(ProcessSortByPriority(tmpProcs))
 	return tmpProcs
 }
 
