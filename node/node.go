@@ -1,12 +1,12 @@
 package node
 
 import (
-	"sort"
+
 	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/ejunjsh/gopervisor/config"
+
 )
 
 type Node struct {
@@ -20,18 +20,18 @@ func newNode() *Node {
 }
 
 
-func (pm *Node) CreateProcess(supervisor_id string, config *config.NodeConfig) *Process {
-	procName := config.GetProgramName()
-
-	proc, ok := pm.procs[procName]
-
-	if !ok {
-		proc = NewProcess(supervisor_id, config)
-		pm.procs[procName] = proc
-	}
-	log.Info("create process:", procName)
-	return proc
-}
+//func (pm *Node) CreateProcess(supervisor_id string, config *config.NodeConfig) *Process {
+//	procName := config.GetProgramName()
+//
+//	proc, ok := pm.procs[procName]
+//
+//	if !ok {
+//		proc = NewProcess()
+//		pm.procs[procName] = proc
+//	}
+//	log.Info("create process:", procName)
+//	return proc
+//}
 
 
 func (pm *Node) Add(name string, proc *Process) {

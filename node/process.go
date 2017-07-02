@@ -68,8 +68,8 @@ type Process struct {
 }
 
 
-func NewProcess(supervisor_id string, config *config.ProcConfig) *Process {
-	proc := &Process{supervisor_id: supervisor_id,
+func NewProcess(config *config.ProcConfig) *Process {
+	proc := &Process{
 		config:     config,
 		cmd:        nil,
 		startTime:  time.Unix(0, 0),

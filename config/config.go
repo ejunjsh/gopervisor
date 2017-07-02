@@ -7,18 +7,19 @@ import (
 	"fmt"
 )
 
+type StdConfig struct {
+	Outfile  string  `yaml:"outfile"`
+	Errfile  string  `yaml:"errfile"`
+	Rotate   bool `yaml:"rotate"`
+	Maxbytes int `yaml:"maxbytes"`
+	Backups  int `yaml:"backups" `
+}
 
 type ProcConfig struct {
 	Name string   `yaml:"name"`
 	Cmd string `yaml:"cmd"`
 	Env map[string] string `yaml:"env"`
-	Std struct{
-		Outfile string  `yaml:"outfile"`
-		Errfile string  `yaml:"errfile"`
-		Rotate bool `yaml:"rotate"`
-		Maxbytes int `yaml:"maxbytes"`
-		Backups int `yaml:"backups" `
-	}
+	Std StdConfig
 	Startsecs int `yaml:"startsecs"`
 	Startretries int `yaml:"startretries"`
 	Autostart bool `yaml:"autostart"`

@@ -2,7 +2,7 @@ package config
 
 import (
 	"testing"
-	"fmt"
+
 )
 
 func TestLoadConfig(t *testing.T) {
