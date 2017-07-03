@@ -8,7 +8,7 @@ import (
 )
 
 func TestServer_Run(t *testing.T) {
-	server:=Server{Adress:":8080"}
+	server:=Server{Address:":8080"}
 	go server.Run()
 
 	res, err := http.Get("http://127.0.0.1:8080/gopervisor/abc/1/status")
