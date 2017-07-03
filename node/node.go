@@ -7,31 +7,58 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/ejunjsh/gopervisor/config"
 )
 
 type Node struct {
-	name           string
+	Name           string
 	procs          map[string]*Process
 	lock           sync.Mutex
+	Config         *config.NodeConfig
 }
 
-func newNode() *Node {
-	return &Node{procs: make(map[string]*Process)}
+func NewNode(config *config.NodeConfig) *Node{
+	n:=&Node{procs: make(map[string]*Process),Name:config.Name,Config:config}
+	return n
 }
 
 
-//func (pm *Node) CreateProcess(supervisor_id string, config *config.NodeConfig) *Process {
-//	procName := config.GetProgramName()
-//
-//	proc, ok := pm.procs[procName]
-//
-//	if !ok {
-//		proc = NewProcess()
-//		pm.procs[procName] = proc
-//	}
-//	log.Info("create process:", procName)
-//	return proc
-//}
+func (n *Node) StartSupervisor()*Node{
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	for _,pc:=range *n.Config.Processes{
+		n.CreateProcess(&pc)
+	}
+
+	return n
+}
+
+func (n *Node)StopSupervisor(){
+	n.lock.Lock()
+	for _,proc:=range n.procs{
+		proc.Stop(true)
+	}
+	n.lock.Unlock()
+	n.Clear()
+}
+
+func (n *Node)RestartSupervisor(){
+	n.StopSupervisor()
+    n.StartSupervisor()
+}
+
+func (pm *Node) CreateProcess( config *config.ProcConfig) *Process {
+	procName := config.Name
+
+	proc, ok := pm.procs[procName]
+
+	if !ok {
+		proc = NewProcess(config)
+		pm.procs[procName] = proc
+	}
+	log.Info("create process:", procName)
+	return proc
+}
 
 
 func (pm *Node) Add(name string, proc *Process) {

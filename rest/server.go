@@ -4,32 +4,34 @@ import (
 	"net/http"
 	"regexp"
 	"fmt"
+	"github.com/ejunjsh/gopervisor/node"
 )
 
 type Server struct {
-	Adress string
-
+	Address string
+    Node *node.Node
 }
 
 func (s *Server) Run(){
-	http.ListenAndServe(s.Adress,s)
+	http.ListenAndServe(s.Address,s)
 }
 
 
-var pattern=regexp.MustCompile(`/gopervisor/(\w+)/(\d+)/(\w+)`)
+var pattern=regexp.MustCompile(`/gopervisor/(\w+)/(\w+)`)
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request){
 
 	if pattern.MatchString(r.URL.Path){
 		matches:=pattern.FindSubmatch([]byte(r.URL.Path))
-		node:=string(matches[1])
-        pid:=string(matches[2])
-		operation:=string(matches[3])
-		w.Write([]byte(fmt.Sprintf("node:%s \n pid:%s \n operation:%s \n",node,pid,operation)))
-		return
+		if len(matches)==3 {
+			process := string(matches[1])
+			operation := string(matches[2])
+			w.Write([]byte(fmt.Sprintf("process:%s \n operation:%s \n",process, operation)))
+			return
+		}
 	}
 
 	w.WriteHeader(404)
-	w.Write([]byte("nothing found!"))
+	w.Write([]byte("404,no found!"))
 
 }
