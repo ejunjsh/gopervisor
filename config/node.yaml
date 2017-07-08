@@ -2,19 +2,21 @@ name: node1
 processes:
   -
       name: process1
-      cmd: redisServer.sh
+      cmd: sh /Users/zhouff/gopath/src/github.com/ejunjsh/gopervisor/test.sh
       env:
         env1: env1
       std:
-        outfile: /opt/out
-        errfile: /opt/err
+        outfile: /Users/zhouff/process1.log
+        errfile: /Users/zhouff/process1.log
       startsecs: 1
+      autostart: true
   -
       name: process2
-      cmd: zkServer.sh start
+      cmd: sh /Users/zhouff/gopath/src/github.com/ejunjsh/gopervisor/test.sh
       env:
          env1: env1
       std:
-          outfile: /opt/out
-          errfile: /opt/err
+          outfile: /Users/zhouff/process2.log
+          errfile: /Users/zhouff/process2.log
       startsecs: 2
+      autostart: true

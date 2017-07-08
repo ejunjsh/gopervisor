@@ -30,7 +30,7 @@ type ProcConfig struct {
 
 type NodeConfig struct {
 	Name string
-	Processes *[]ProcConfig
+	Processes []*ProcConfig
 }
 
 func LoadConfig(filepath string) (*NodeConfig,error){
@@ -49,9 +49,9 @@ func LoadConfig(filepath string) (*NodeConfig,error){
 }
 
 func (n *NodeConfig)GetProcConfig(name string) *ProcConfig {
-	for _,proc:=range *n.Processes{
+	for _,proc:=range n.Processes{
 		if proc.Name==name{
-			return &proc
+			return proc
 		}
 	}
 	return nil

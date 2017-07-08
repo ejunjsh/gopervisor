@@ -65,6 +65,7 @@ type Process struct {
 	stdin      io.WriteCloser
 	stdoutLog  Logger
 	stderrLog  Logger
+	exitc chan struct{}
 }
 
 
@@ -77,9 +78,8 @@ func NewProcess(config *config.ProcConfig) *Process {
 		state:      STOPPED,
 		inStart:    false,
 		stopByUser: false,
-		retryTimes: 0}
-	proc.config = config
-	proc.cmd = nil
+		retryTimes: 0,
+	}
 
 	//start the process if autostart is set to true
 	if proc.isAutoStart() {
@@ -92,7 +92,11 @@ func NewProcess(config *config.ProcConfig) *Process {
 func (p *Process) Start(wait bool) {
 	log.WithFields(log.Fields{"program": p.GetName()}).Info("try to start program")
 	p.lock.Lock()
-	if p.inStart {
+	if p.exitc!= nil{
+		close(p.exitc)
+	}
+	p.exitc=make(chan struct{},1)
+	if p.inStart || p.state==RUNNING{
 		log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start program again, program is already started")
 		p.lock.Unlock()
 		return
@@ -131,6 +135,7 @@ func (p *Process) Start(wait bool) {
 		}
 		p.lock.Lock()
 		p.inStart = false
+		p.exitc<- struct{}{}
 		p.lock.Unlock()
 	}()
 	if wait {
@@ -287,7 +292,7 @@ func (p *Process) run(runCond *sync.Cond) {
 		return
 	}
 	p.lock.Lock()
-	if p.cmd != nil {
+	if p.cmd != nil && p.cmd.ProcessState!=nil {
 		status := p.cmd.ProcessState.Sys().(syscall.WaitStatus)
 		if status.Continued() {
 			log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start program because it is running")
@@ -499,9 +504,24 @@ func (p *Process) Stop(wait bool) {
 	}
 }
 
+func (p *Process) Restart(wait bool) {
+	if wait{
+		p.Stop(wait)
+		<-p.exitc
+		p.Start(wait)
+	}else {
+		go func() {
+			p.Stop(!wait)
+			if _,ok:=<-p.exitc;ok{
+				p.Start(!wait)
+			}
+		}()
+	}
+}
+
 func (p *Process) GetStatus() string {
-	if p.cmd.ProcessState.Exited() {
+	if p.cmd.ProcessState!=nil{
 		return p.cmd.ProcessState.String()
 	}
-	return "running"
+	return p.state.String()
 }

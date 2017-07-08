@@ -5,10 +5,13 @@ import (
 	"github.com/ejunjsh/gopervisor/node"
 	"github.com/ejunjsh/gopervisor/config"
 	log "github.com/Sirupsen/logrus"
-	"github.com/ejunjsh/gopervisor/rest"
+	"github.com/ejunjsh/gorest"
 )
 
-
+type statusJson struct {
+	Name string `json:"name"`
+	Status string `json:"status"`
+}
 
 func main(){
 	var confFile,address string
@@ -27,7 +30,60 @@ func main(){
 	n:=node.NewNode(c)
 	n.StartSupervisor()
 
-	s:=rest.Server{Address:address,Node:n}
-	s.Run()
+	r:=gorest.NewApp()
+	r.Get("/p/:op", func(r *gorest.HttpRequest, w gorest.HttpResponse) error {
+		statusr:= make([]statusJson,0)
+		if op,ok:=r.PathParams["op"];ok{
+			switch op {
+			case "status":
+				n.ForEachProcess(func(p *node.Process) {
+					statusr=append(statusr, statusJson{p.GetName(),p.GetStatus()})
+				})
+				return w.WriteJson(statusr)
+			case "start":
+				n.ForEachProcess(func(p *node.Process) {
+					p.Start(false)
+				})
+				return w.WriteString("OK")
+			case "stop":
+				n.ForEachProcess(func(p *node.Process) {
+					p.Stop(false)
+				})
+				return w.WriteString("OK")
+			case "restart":
+				n.ForEachProcess(func(p *node.Process) {
+					p.Restart(false)
+				})
+				return w.WriteString("OK")
+			}
+		}
+		return nil
+	})
+	r.Get("/p/:name/:op", func(r *gorest.HttpRequest, w gorest.HttpResponse) error {
+		statusr:= make([]statusJson,0)
+		if name,ok:=r.PathParams["name"];ok{
+			p:=n.Find(name)
+			if p!=nil{
+				if op,ok:=r.PathParams["op"];ok {
+					switch op {
+					case "status":
+						statusr = append(statusr, statusJson{p.GetName(), p.GetStatus()})
+						return w.WriteJson(statusr)
+					case "start":
+						p.Start(false)
+						return w.WriteString("OK")
+					case "stop":
+						p.Stop(false)
+						return w.WriteString("OK")
+					case "restart":
+						p.Restart(false)
+						return w.WriteString("OK")
+					}
+				}
+			}
+		}
+		return nil
+	})
+	r.Run(address)
 }
 

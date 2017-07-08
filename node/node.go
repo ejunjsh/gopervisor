@@ -26,8 +26,8 @@ func NewNode(config *config.NodeConfig) *Node{
 func (n *Node) StartSupervisor()*Node{
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	for _,pc:=range *n.Config.Processes{
-		n.CreateProcess(&pc)
+	for _,pc:=range n.Config.Processes{
+		n.CreateProcess(pc)
 	}
 
 	return n
