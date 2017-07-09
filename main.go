@@ -80,6 +80,8 @@ func main(){
 						return w.WriteString("OK")
 					}
 				}
+			} else {
+				return w.WriteString("can not find the process "+name)
 			}
 		}
 		return nil
