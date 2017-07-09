@@ -12,14 +12,14 @@ import (
 
 func main(){
 	if len(os.Args)==1 {
-	   fmt.Println("usage:<export remote=127.0.0.1:9443;> gsctl [start|restart|stop|status] <processname>")
+	   fmt.Println("usage:<export GSREMOTE=127.0.0.1:9443;> gsctl [start|restart|stop|status] <processname>")
 		fmt.Println("[...] is madatory, <...> is optional")
 
 	}
     var address string
 
 	for _,env:=range os.Environ(){
-		if strings.Contains(env,"remote="){
+		if strings.Contains(env,"GSREMOTE="){
 			address=strings.Split(env,"=")[1]
 		}
 	}
