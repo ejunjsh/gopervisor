@@ -6,7 +6,7 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	n,err:= LoadConfig("./node.yaml")
+	n,err:= LoadConfig("./node.yml")
 	if err!=nil{
 		t.Error(err)
 	}
