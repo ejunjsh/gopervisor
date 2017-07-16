@@ -65,9 +65,8 @@ type Process struct {
 	stdin      io.WriteCloser
 	stdoutLog  Logger
 	stderrLog  Logger
-	exitc chan struct{}
+	exitc      chan struct{}
 }
-
 
 func NewProcess(config *config.ProcConfig) *Process {
 	proc := &Process{
@@ -92,11 +91,11 @@ func NewProcess(config *config.ProcConfig) *Process {
 func (p *Process) Start(wait bool) {
 	log.WithFields(log.Fields{"program": p.GetName()}).Info("try to start program")
 	p.lock.Lock()
-	if p.exitc!= nil{
+	if p.exitc != nil {
 		close(p.exitc)
 	}
-	p.exitc=make(chan struct{},1)
-	if p.inStart || p.state==RUNNING{
+	p.exitc = make(chan struct{}, 1)
+	if p.inStart || p.state == RUNNING {
 		log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start program again, program is already started")
 		p.lock.Unlock()
 		return
@@ -128,14 +127,14 @@ func (p *Process) Start(wait bool) {
 				log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start the stopped program because its autorestart flag is false")
 				break
 			}
-			if p.retryTimes >= p.getStartRetries() {
+			if p.retryTimes >= p.getStartRetries() && p.getStartRetries() > 0 {
 				log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start the stopped program because its retry times ", p.retryTimes, " is greater than start retries ", p.getStartRetries())
 				break
 			}
 		}
 		p.lock.Lock()
 		p.inStart = false
-		p.exitc<- struct{}{}
+		p.exitc <- struct{}{}
 		p.lock.Unlock()
 	}()
 	if wait {
@@ -146,7 +145,6 @@ func (p *Process) Start(wait bool) {
 func (p *Process) GetName() string {
 	return p.config.Name
 }
-
 
 func (p *Process) GetDescription() string {
 	if p.state == RUNNING {
@@ -198,15 +196,15 @@ func (p *Process) GetStopTime() time.Time {
 }
 
 func (p *Process) GetStdoutLogfile() string {
-	if p.config.Std.Outfile ==""{
+	if p.config.Std.Outfile == "" {
 		return "/dev/null"
 	} else {
-	   return p.config.Std.Outfile
+		return p.config.Std.Outfile
 	}
 }
 
 func (p *Process) GetStderrLogfile() string {
-	if p.config.Std.Errfile ==""{
+	if p.config.Std.Errfile == "" {
 		return "/dev/null"
 	} else {
 		return p.config.Std.Errfile
@@ -225,7 +223,6 @@ func (p *Process) isAutoStart() bool {
 	return p.config.Autostart
 }
 
-
 func (p *Process) SendProcessStdin(chars string) error {
 	if p.stdin != nil {
 		_, err := p.stdin.Write([]byte(chars))
@@ -236,7 +233,7 @@ func (p *Process) SendProcessStdin(chars string) error {
 
 // check if the process should be
 func (p *Process) isAutoRestart() bool {
-	 return p.config.Autorestart
+	return p.config.Autorestart
 
 	//if !autoRestart  {
 	//	return false
@@ -271,6 +268,7 @@ func (p *Process) getExitCode() (int, error) {
 	return -1, fmt.Errorf("no exit code")
 
 }
+
 //
 //func (p *Process) getExitCodes() []int {
 //	strExitCodes := strings.Split(p.config.GetString("exitcodes", "0,2"), ",")
@@ -292,7 +290,7 @@ func (p *Process) run(runCond *sync.Cond) {
 		return
 	}
 	p.lock.Lock()
-	if p.cmd != nil && p.cmd.ProcessState!=nil {
+	if p.cmd != nil && p.cmd.ProcessState != nil {
 		status := p.cmd.ProcessState.Sys().(syscall.WaitStatus)
 		if status.Continued() {
 			log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start program because it is running")
@@ -413,22 +411,20 @@ func (p *Process) setEnv() {
 //	}
 //}
 
-
-
 func (p *Process) setLog() {
-	var maxbytes,backups int
-	if p.config.Std.Maxbytes==0{
-		maxbytes=50*1024*1024
+	var maxbytes, backups int
+	if p.config.Std.Maxbytes == 0 {
+		maxbytes = 50 * 1024 * 1024
 	}
-	if p.config.Std.Backups==0{
-		backups=10
+	if p.config.Std.Backups == 0 {
+		backups = 10
 	}
 
-	p.stdoutLog = p.createLogger(p.config.Std.Outfile,int64(maxbytes),backups)
+	p.stdoutLog = p.createLogger(p.config.Std.Outfile, int64(maxbytes), backups)
 
 	p.cmd.Stdout = p.stdoutLog
 
-	p.stderrLog = p.createLogger(p.config.Std.Errfile,int64(maxbytes),backups)
+	p.stderrLog = p.createLogger(p.config.Std.Errfile, int64(maxbytes), backups)
 
 	p.cmd.Stderr = p.stderrLog
 }
@@ -505,14 +501,14 @@ func (p *Process) Stop(wait bool) {
 }
 
 func (p *Process) Restart(wait bool) {
-	if wait{
+	if wait {
 		p.Stop(wait)
 		<-p.exitc
 		p.Start(wait)
-	}else {
+	} else {
 		go func() {
 			p.Stop(!wait)
-			if _,ok:=<-p.exitc;ok{
+			if _, ok := <-p.exitc; ok {
 				p.Start(!wait)
 			}
 		}()
@@ -520,7 +516,7 @@ func (p *Process) Restart(wait bool) {
 }
 
 func (p *Process) GetStatus() string {
-	if p.cmd.ProcessState!=nil{
+	if p.cmd.ProcessState != nil {
 		return p.cmd.ProcessState.String()
 	}
 	return p.state.String()
